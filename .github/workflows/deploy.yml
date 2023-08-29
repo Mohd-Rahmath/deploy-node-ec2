@@ -23,8 +23,7 @@ jobs:
       - uses: actions/checkout@v1
 
       - run: npm install --force
-      - run: npm run build
-
+      - run: npm build
 
       - name: rsync deployments
         uses: burnett01/rsync-deployments@5.1
