@@ -1,59 +1,37 @@
-# name: Push-to-EC2
-
-# on: push
-
-# jobs:
-#   deploy:
-#     name: Push to EC2 Instance
-#     runs-on: ubuntu-latest
-
-#     steps:
-#       - name: Checkout the code
-#         uses: actions/checkout@v1
-
-#       - name: Deploy to my EC2 instance
-#         uses: easingthemes/ssh-deploy@v2.1.5
-#         env:
-#           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
-#           SOURCE: "./"
-#           REMOTE_HOST: "ec2-54-166-235-89.compute-1.amazonaws.com"
-#           REMOTE_USER: "ubuntu"
-#           TARGET: "/var/html/html"
-
-
-name: deploy-to-eb
+name: CI
 
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  workflow_dispatch:
 
 jobs:
-  deploy:
+  build:
+
     runs-on: ubuntu-latest
 
+    if: github.ref == 'refs/heads/master'
+
+    strategy:
+      matrix:
+        node-version: [14.x]
+
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
 
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v1
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test
+
+      - name: rsync deployments
+        uses: burnett01/rsync-deployments@5.1
         with:
-          node-version: ${{ matrix.node-version }}
-
-      - name: Install npm dependencies
-        run: npm install --force
-
-      - name: Prebuild
-        run: npm run prebuild
-
-      - name: Build
-        run: npm run build
-
-      - name: Deploy to my EC2 instance
-        env:
-            SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
-            SOURCE: "./"
-            REMOTE_HOST: "ec2-54-166-235-89.compute-1.amazonaws.com"
-            REMOTE_USER: "ubuntu"
-            TARGET: "/var/html/html"
-
-      
+          switches: -avzr --delete
+          path: ./*
+          remote_path: /var/www/html/my-app
+          remote_host: ec2-54-166-235-89.compute-1.amazonaws.com
+          remote_user: ubuntu
+          remote_key: "${{ secrets.EC2_SSH_KEY }}"    
